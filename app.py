@@ -9,11 +9,11 @@ import os
 st.set_page_config(
     page_title="Fluxo Familiar",
     page_icon="💰",
-    layout="centered", # Centralizado e ideal para visualização em celulares
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# Estilização CSS customizada para garantir excelente visual no Safari do iOS
+# Estilização CSS customizada para excelente visual no Safari do iOS
 st.markdown("""
     <style>
     .main {
@@ -62,7 +62,7 @@ df_transposed.index = pd.to_datetime(df_transposed.index, errors='coerce')
 # Título Compacto Mobile
 st.title("💰 Fluxo Familiar")
 
-# Seletor de Mês (Em destaque no topo para facilitar no celular)
+# Seletor de Mês
 valid_dates = [d for d in df_transposed.index if pd.notnull(d)]
 formatted_dates = [d.strftime('%b / %Y') for d in valid_dates]
 
@@ -139,11 +139,10 @@ with tab4:
     st.subheader("✏️ Atualização Rápida")
     st.markdown("Selecione o item e informe o novo valor para salvar direto na planilha:")
     
-    # Lista de categorias disponíveis para edição rápida
     categorias_disponiveis = df_raw[col_desc].dropna().tolist()
     cat_selecionada = st.selectbox("Categoria / Item", categorias_disponiveis)
     
-    # Pegar valor atual para sugerir
+    # Pegar valor atual com segurança
     val_atual = df_raw.loc[df_raw[col_desc] == cat_selecionada, selected_date].values
     val_default = float(val_atual[0]) if len(val_atual) > 0 and pd.notnull(val_atual[0]) else 0.0
     
@@ -151,15 +150,18 @@ with tab4:
     
     if st.button("💾 Atualizar Valor", type="primary", use_container_width=True):
         try:
-            # Atualiza o dataframe original na célula correspondente
-            df_raw.loc[df_raw[col_desc] == cat_selecionada, selected_date] = novo_valor
+            # Converte a coluna inteira para numérica antes de atribuir para evitar conflitos de tipo
+            df_raw[selected_date] = pd.to_numeric(df_raw[selected_date], errors='coerce').fillna(0.0)
+            
+            # Atualiza o valor na linha correspondente
+            df_raw.loc[df_raw[col_desc] == cat_selecionada, selected_date] = float(novo_valor)
             
             # Salva no arquivo Excel
             with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl', mode='w') as writer:
                 df_raw.to_excel(writer, sheet_name='Fluxo Familiar', index=False)
                 
             st.session_state['df_data'] = df_raw
-            st.success("✅ Atualizado com sucesso!")
+            st.success("✅ Atualizado e salvo com sucesso!")
             st.rerun()
         except Exception as e:
             st.error(f"Erro ao salvar: {e}")
